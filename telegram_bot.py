@@ -5,7 +5,7 @@ from telegram.ext import Application, MessageHandler, filters, ChatJoinRequestHa
 from telegram.error import TelegramError
 
 # Replace this with your bot token from BotFather
-BOT_TOKEN = os.getenv("7743886736:AAEsIRP5Q9yUedoZ0Hmr8AhtpZRQovq1ZW8")
+BOT_TOKEN = "7743886736:AAEsIRP5Q9yUedoZ0Hmr8AhtpZRQovq1ZW8"
 
 # Initialize Flask app
 app = Flask(__name__)
