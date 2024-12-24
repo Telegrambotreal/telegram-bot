@@ -1,11 +1,13 @@
 import os
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ChatJoinRequestHandler, CallbackContext
+from telegram.ext import Application, ChatJoinRequestHandler, MessageHandler, filters, CallbackContext
 from telegram.error import TelegramError
 
-# Replace this with your bot token from BotFather
+# Load the bot token from the environment variable
 BOT_TOKEN = "7743886736:AAEsIRP5Q9yUedoZ0Hmr8AhtpZRQovq1ZW8"
+if not BOT_TOKEN:
+    raise ValueError("Missing BOT_TOKEN environment variable")
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -41,6 +43,7 @@ async def approve_and_greet_user(update: Update, context: CallbackContext):
 
         # Send the message directly to the user with HTML formatting
         await context.bot.send_message(chat_id=user_id, text=greeting_message, parse_mode="HTML")
+
         print(f"Greeted user {update.chat_join_request.from_user.first_name} personally.")
     except TelegramError as e:
         print(f"Error: {e.message}")
@@ -62,20 +65,35 @@ async def farewell_user(update: Update, context: CallbackContext):
         except TelegramError as e:
             print(f"Error sending farewell: {e.message}")
 
-# Add handlers to the application
-application.add_handler(ChatJoinRequestHandler(approve_and_greet_user))
-application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, farewell_user))
+# Root route for Flask
+@app.route('/')
+def index():
+    return "Hello! The Telegram bot is running.", 200
 
-# Flask route to handle Telegram webhook
-@app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
+# Webhook for Telegram updates (optional)
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    """Process incoming updates from Telegram."""
-    json_update = request.get_json()
-    update = Update.de_json(json_update, application.bot)
-    application.update_queue.put_nowait(update)
-    return "OK", 200
+    if request.method == "POST":
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.update_queue.put(update)
+        return "OK", 200
 
-# Main entry point for the Flask app
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+# Main function to start the bot and the Flask app
+def main():
+    # Add a handler for chat join requests
+    application.add_handler(ChatJoinRequestHandler(approve_and_greet_user))
+
+    # Add a handler for users leaving the group
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, farewell_user))
+
+    # Start the bot polling
+    print("Bot is running...")
+    application.run_polling()
+
+# Entry point for the script
+if __name__ == '__main__':
+    # Start Flask app in debug mode (use production server in production)
+    app.run(host='0.0.0.0', port=10000)
+    
+    # Optionally run the Telegram bot in polling mode (if not using webhook)
+    main()
