@@ -1,21 +1,27 @@
+import os
+from flask import Flask
 from telegram import Update
 from telegram.ext import Application, ChatJoinRequestHandler, MessageHandler, CallbackContext, filters
 from telegram.error import TelegramError
+import logging
 
 # Replace this with your bot token from BotFather
 BOT_TOKEN = "7743886736:AAEsIRP5Q9yUedoZ0Hmr8AhtpZRQovq1ZW8"
 
-# 1. Approve and greet the user personally with advanced customizations
+# Enable logging for debugging
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize Flask app (for web service requirements)
+app = Flask(__name__)
+
+# Function to approve and greet the user
 async def approve_and_greet_user(update: Update, context: CallbackContext):
     try:
-        # Extract user ID and approve their join request
         user_id = update.chat_join_request.from_user.id
         chat_id = update.chat_join_request.chat.id
-
-        # Approve the user's join request
         await context.bot.approve_chat_join_request(chat_id=chat_id, user_id=user_id)
-
-        # Compose the greeting message with HTML, emojis, and design
+        
         greeting_message = (
             "<b><i>🎉 <u>Hey Official</u>, Welcome To The Bot!</i></b>\n\n"
             "<b>🌟 You’re Just One Step Away From Unlocking Awesome Rewards!</b>\n\n"
@@ -30,15 +36,12 @@ async def approve_and_greet_user(update: Update, context: CallbackContext):
             "<b>💖 <i>With ❤️ by <a href='https://t.me/Dmdsofficial'>@DmdsOfficial</a></i></b>\n\n"
             "<b><i>✨ Stay connected and enjoy the best deals! ✨</i></b>"
         )
-
-        # Send the message directly to the user with HTML formatting
+        
         await context.bot.send_message(chat_id=user_id, text=greeting_message, parse_mode="HTML")
-
-        print(f"Greeted user {update.chat_join_request.from_user.first_name} personally.")
     except TelegramError as e:
-        print(f"Error: {e.message}")
+        logger.error(f"Error: {e.message}")
 
-# 2. Send a personal farewell message for users who leave with HTML and emojis
+# Function for farewell message
 async def farewell_user(update: Update, context: CallbackContext):
     user = update.message.left_chat_member
     if user:
@@ -48,28 +51,31 @@ async def farewell_user(update: Update, context: CallbackContext):
             "<b>❤️ We hope to see you again soon!</b>\n"
             "<b>✨ <i>Stay awesome, and good luck with everything!</i></b>"
         )
-        # Send the farewell message to the user's private chat with HTML formatting
         try:
             await context.bot.send_message(chat_id=user.id, text=farewell_message, parse_mode="HTML")
-            print(f"Farewell message sent to {user.first_name} personally.")
         except TelegramError as e:
-            print(f"Error sending farewell: {e.message}")
+            logger.error(f"Error sending farewell: {e.message}")
+
+# Flask route (to meet platform port binding requirements)
+@app.route('/')
+def webhook():
+    return "Bot is running"
 
 # Main function
 def main():
-    # Create the Application with the bot token
+    # Create the bot application
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Add a handler for chat join requests
+    # Add handlers for bot actions
     application.add_handler(ChatJoinRequestHandler(approve_and_greet_user))
-
-    # Add a handler for users leaving the group
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, farewell_user))
 
-    # Start the bot
-    print("Bot is running...")
+    # Start the bot using polling in the background
     application.run_polling()
 
-# Entry point for the script
+    # Run the Flask web server (for handling the platform's port requirements)
+    port = int(os.getenv("PORT", 5000))  # Render provides the PORT environment variable
+    app.run(host="0.0.0.0", port=port)
+
 if __name__ == "__main__":
     main()
